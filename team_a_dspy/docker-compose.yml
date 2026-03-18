@@ -1,0 +1,25 @@
+services:
+  chromadb:
+    image: chromadb/chroma:0.5.18
+    ports:
+      - "8020:8000"
+    volumes:
+      - team_a_chroma_data:/data
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: "/data"
+      ANONYMIZED_TELEMETRY: "False"
+
+  dspy_hello_world:
+      build: .
+      env_file:
+        - .env
+      environment:
+        ANONYMIZED_TELEMETRY: "False" 
+      stdin_open: true 
+      tty: true        
+      depends_on:
+        - chromadb
+
+volumes:
+  team_a_chroma_data:

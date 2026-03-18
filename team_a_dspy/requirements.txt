@@ -1,0 +1,8 @@
+dspy>=2.5.0
+mlflow>=2.15.0
+openai>=1.0.0
+elasticsearch>=8.0.0,<9.0.0
+pydantic-settings==2.7.1
+chromadb==0.5.18
+langchain-huggingface>=0.1.0
+sentence-transformers==3.3.1
