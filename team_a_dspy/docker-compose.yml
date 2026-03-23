@@ -10,16 +10,26 @@ services:
       PERSIST_DIRECTORY: "/data"
       ANONYMIZED_TELEMETRY: "False"
 
+  sandbox_es:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.7.1 
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # No passwords needed for the sandbox
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200" 
+
   dspy_hello_world:
-      build: .
-      env_file:
-        - .env
-      environment:
-        ANONYMIZED_TELEMETRY: "False" 
-      stdin_open: true 
-      tty: true        
-      depends_on:
-        - chromadb
+    build: .
+    env_file:
+      - .env
+    environment:
+      ANONYMIZED_TELEMETRY: "False" 
+    stdin_open: true 
+    tty: true        
+    depends_on:
+      - chromadb
+      - sandbox_es
 
 volumes:
   team_a_chroma_data:

@@ -22,4 +22,7 @@ class Settings(BaseSettings):
     chroma_collection: str = "gkg_mapping"
     schema_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
+    # Sandbox Elasticsearch
+    sandbox_es_host: str = "http://sandbox_es:9200"
+
 settings = Settings()
