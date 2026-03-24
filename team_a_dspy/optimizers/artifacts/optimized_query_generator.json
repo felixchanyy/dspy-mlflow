@@ -1,0 +1,1253 @@
+{
+  "schema_retriever.retrival_planner.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "nl_query": "What are the most active news sources covering the US political situation today?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "US"
+                  }
+                },
+                {
+                  "terms": {
+                    "V2EnhancedThemes.V2Theme.keyword": [
+                      "GENERAL_GOVERNMENT",
+                      "EPU_POLICY_POLITICAL",
+                      "DEMOCRACY"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-1d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_sources": {
+              "terms": {
+                "field": "V2SrcCmnName.V2SrcCmnName.keyword",
+                "size": 15
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What are the most discussed economic policy topics globally this week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "wildcard": {
+                    "V2EnhancedThemes.V2Theme.keyword": "EPU_*"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_epu_themes": {
+              "terms": {
+                "field": "V2EnhancedThemes.V2Theme.keyword",
+                "size": 20
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What is the overall sentiment trend of news about Ukraine over the past 7 days?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "UP"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "sentiment_over_time": {
+              "date_histogram": {
+                "field": "V21Date",
+                "calendar_interval": "day"
+              },
+              "aggs": {
+                "avg_tone": {
+                  "avg": {
+                    "field": "V15Tone.Tone"
+                  }
+                },
+                "avg_negative": {
+                  "avg": {
+                    "field": "V15Tone.NegativeScore"
+                  }
+                },
+                "avg_positive": {
+                  "avg": {
+                    "field": "V15Tone.PositiveScore"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "How many news articles mentioned Israel in the last 24 hours?",
+        "expected_query_dsl": {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "IS"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-24h",
+                      "lte": "now"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "track_total_hits": true,
+          "size": 0
+        }
+      },
+      {
+        "nl_query": "How many articles mention armed conflict in the last 48 hours, broken down by country?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "ARMEDCONFLICT"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-48h",
+                      "lte": "now"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "by_country": {
+              "terms": {
+                "field": "V2Locations.CountryCode.keyword",
+                "size": 30
+              },
+              "aggs": {}
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What are the top 10 most action-oriented (high activity density) articles this week?",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "range": {
+              "V21Date": {
+                "gte": "now-7d/d",
+                "lte": "now/d"
+              }
+            }
+          },
+          "sort": [
+            {
+              "V15Tone.ActivityRefDensity": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V15Tone.ActivityRefDensity",
+            "V21Date",
+            "V2Locations.FullName"
+          ]
+        }
+      },
+      {
+        "nl_query": "What countries are mentioned in articles about the Strait of Hormuz this week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match": {
+                    "V21AllNames.Name": "Strait of Hormuz"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "mentioned_countries": {
+              "terms": {
+                "field": "V2Locations.CountryCode.keyword",
+                "size": 20
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Which news sources are reporting the most on the Middle East conflict?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "terms": {
+                    "V2EnhancedThemes.V2Theme.keyword": [
+                      "ARMEDCONFLICT",
+                      "CRISISLEX_CRISISLEXREC"
+                    ]
+                  }
+                },
+                {
+                  "terms": {
+                    "V2Locations.CountryCode.keyword": [
+                      "IS",
+                      "IZ",
+                      "LB",
+                      "SY",
+                      "IR",
+                      "YM"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_sources": {
+              "terms": {
+                "field": "V2SrcCmnName.V2SrcCmnName.keyword",
+                "size": 15
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Which organizations are most mentioned in articles about climate change this week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "terms": {
+                    "V2EnhancedThemes.V2Theme.keyword": [
+                      "ENV_CLIMATECHANGE",
+                      "ENV_CLIMATECHANGE_POLICY"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_orgs": {
+              "terms": {
+                "field": "V2Orgs.V1Org.keyword",
+                "size": 15
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What countries had the most military-related news coverage last week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "MILITARY"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "by_country": {
+              "terms": {
+                "field": "V2Locations.CountryCode.keyword",
+                "size": 20
+              },
+              "aggs": {
+                "avg_tone": {
+                  "avg": {
+                    "field": "V15Tone.Tone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Show me articles about missing or trapped people from any crisis event this week.",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "CRISISLEX_T08_MISSINGFOUNDTRAPPEDPEOPLE"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "sort": [
+            {
+              "V21Date": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2Locations.FullName",
+            "V15Tone.NegativeScore"
+          ]
+        }
+      },
+      {
+        "nl_query": "Which natural disasters were reported globally in the last week?",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "wildcard": {
+                    "V2EnhancedThemes.V2Theme.keyword": "NATURAL_DISASTER*"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "sort": [
+            {
+              "V21Date": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2Locations.FullName",
+            "V2EnhancedThemes.V2Theme"
+          ]
+        }
+      },
+      {
+        "nl_query": "Show me articles mentioning Donald Trump in the last 3 days.",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match": {
+                    "V2Persons.V1Person": "Donald Trump"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-3d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2SrcCmnName.V2SrcCmnName",
+            "V15Tone.Tone"
+          ]
+        }
+      },
+      {
+        "nl_query": "Which articles from the past week are sourced from translingual or non-English publishers?",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "GkgRecordId.Translingual": true
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V2SrcCmnName.V2SrcCmnName",
+            "V21Date"
+          ]
+        }
+      },
+      {
+        "nl_query": "What were the most positive stories about Saudi Arabia last week?",
+        "expected_query_dsl": {
+          "size": 5,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "SA"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                },
+                {
+                  "range": {
+                    "V15Tone.PositiveScore": {
+                      "gte": 5
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "sort": [
+            {
+              "V15Tone.PositiveScore": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V15Tone.PositiveScore",
+            "V21Date"
+          ]
+        }
+      },
+      {
+        "nl_query": "Show me articles about education in India from the last 5 days.",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "IN"
+                  }
+                },
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "EDUCATION"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-5d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2SrcCmnName.V2SrcCmnName"
+          ]
+        }
+      }
+    ],
+    "signature": {
+      "instructions": "Analyze a user's natural language data request and identify the distinct categories of database fields needed to fulfill it.\nExtract concepts like time, location, numeric metrics, or specific identifiers.",
+      "fields": [
+        {
+          "prefix": "Nl Query:",
+          "description": "The user's raw request."
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Search Terms:",
+          "description": "A comma-separated list ofshort, distinct database terms needed."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "generate_query.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "nl_query": "How many articles mention armed conflict in the last 48 hours, broken down by country?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "ARMEDCONFLICT"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-48h",
+                      "lte": "now"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "by_country": {
+              "terms": {
+                "field": "V2Locations.CountryCode.keyword",
+                "size": 30
+              },
+              "aggs": {}
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Show me articles mentioning Donald Trump in the last 3 days.",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match": {
+                    "V2Persons.V1Person": "Donald Trump"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-3d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2SrcCmnName.V2SrcCmnName",
+            "V15Tone.Tone"
+          ]
+        }
+      },
+      {
+        "nl_query": "What are the most discussed economic policy topics globally this week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "wildcard": {
+                    "V2EnhancedThemes.V2Theme.keyword": "EPU_*"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_epu_themes": {
+              "terms": {
+                "field": "V2EnhancedThemes.V2Theme.keyword",
+                "size": 20
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What countries had the most military-related news coverage last week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "MILITARY"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "by_country": {
+              "terms": {
+                "field": "V2Locations.CountryCode.keyword",
+                "size": 20
+              },
+              "aggs": {
+                "avg_tone": {
+                  "avg": {
+                    "field": "V15Tone.Tone"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Show me articles about education in India from the last 5 days.",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "IN"
+                  }
+                },
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "EDUCATION"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-5d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2SrcCmnName.V2SrcCmnName"
+          ]
+        }
+      },
+      {
+        "nl_query": "Which organizations are most mentioned in articles about climate change this week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "terms": {
+                    "V2EnhancedThemes.V2Theme.keyword": [
+                      "ENV_CLIMATECHANGE",
+                      "ENV_CLIMATECHANGE_POLICY"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_orgs": {
+              "terms": {
+                "field": "V2Orgs.V1Org.keyword",
+                "size": 15
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What were the most positive stories about Saudi Arabia last week?",
+        "expected_query_dsl": {
+          "size": 5,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "SA"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                },
+                {
+                  "range": {
+                    "V15Tone.PositiveScore": {
+                      "gte": 5
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "sort": [
+            {
+              "V15Tone.PositiveScore": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V15Tone.PositiveScore",
+            "V21Date"
+          ]
+        }
+      },
+      {
+        "nl_query": "What is the overall sentiment trend of news about Ukraine over the past 7 days?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "UP"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "sentiment_over_time": {
+              "date_histogram": {
+                "field": "V21Date",
+                "calendar_interval": "day"
+              },
+              "aggs": {
+                "avg_tone": {
+                  "avg": {
+                    "field": "V15Tone.Tone"
+                  }
+                },
+                "avg_negative": {
+                  "avg": {
+                    "field": "V15Tone.NegativeScore"
+                  }
+                },
+                "avg_positive": {
+                  "avg": {
+                    "field": "V15Tone.PositiveScore"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Which natural disasters were reported globally in the last week?",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "wildcard": {
+                    "V2EnhancedThemes.V2Theme.keyword": "NATURAL_DISASTER*"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "sort": [
+            {
+              "V21Date": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2Locations.FullName",
+            "V2EnhancedThemes.V2Theme"
+          ]
+        }
+      },
+      {
+        "nl_query": "What are the most active news sources covering the US political situation today?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "US"
+                  }
+                },
+                {
+                  "terms": {
+                    "V2EnhancedThemes.V2Theme.keyword": [
+                      "GENERAL_GOVERNMENT",
+                      "EPU_POLICY_POLITICAL",
+                      "DEMOCRACY"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-1d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_sources": {
+              "terms": {
+                "field": "V2SrcCmnName.V2SrcCmnName.keyword",
+                "size": 15
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "What are the top 10 most action-oriented (high activity density) articles this week?",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "range": {
+              "V21Date": {
+                "gte": "now-7d/d",
+                "lte": "now/d"
+              }
+            }
+          },
+          "sort": [
+            {
+              "V15Tone.ActivityRefDensity": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V15Tone.ActivityRefDensity",
+            "V21Date",
+            "V2Locations.FullName"
+          ]
+        }
+      },
+      {
+        "nl_query": "What countries are mentioned in articles about the Strait of Hormuz this week?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "match": {
+                    "V21AllNames.Name": "Strait of Hormuz"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "mentioned_countries": {
+              "terms": {
+                "field": "V2Locations.CountryCode.keyword",
+                "size": 20
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "Show me articles about missing or trapped people from any crisis event this week.",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2EnhancedThemes.V2Theme.keyword": "CRISISLEX_T08_MISSINGFOUNDTRAPPEDPEOPLE"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "sort": [
+            {
+              "V21Date": {
+                "order": "desc"
+              }
+            }
+          ],
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V21Date",
+            "V2Locations.FullName",
+            "V15Tone.NegativeScore"
+          ]
+        }
+      },
+      {
+        "nl_query": "Which articles from the past week are sourced from translingual or non-English publishers?",
+        "expected_query_dsl": {
+          "size": 10,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "GkgRecordId.Translingual": true
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "_source": [
+            "V2ExtrasXML.Title",
+            "V2DocId",
+            "V2SrcCmnName.V2SrcCmnName",
+            "V21Date"
+          ]
+        }
+      },
+      {
+        "nl_query": "Which news sources are reporting the most on the Middle East conflict?",
+        "expected_query_dsl": {
+          "size": 0,
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "terms": {
+                    "V2EnhancedThemes.V2Theme.keyword": [
+                      "ARMEDCONFLICT",
+                      "CRISISLEX_CRISISLEXREC"
+                    ]
+                  }
+                },
+                {
+                  "terms": {
+                    "V2Locations.CountryCode.keyword": [
+                      "IS",
+                      "IZ",
+                      "LB",
+                      "SY",
+                      "IR",
+                      "YM"
+                    ]
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-7d/d",
+                      "lte": "now/d"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "aggs": {
+            "top_sources": {
+              "terms": {
+                "field": "V2SrcCmnName.V2SrcCmnName.keyword",
+                "size": 15
+              }
+            }
+          }
+        }
+      },
+      {
+        "nl_query": "How many news articles mentioned Israel in the last 24 hours?",
+        "expected_query_dsl": {
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "term": {
+                    "V2Locations.CountryCode.keyword": "IS"
+                  }
+                },
+                {
+                  "range": {
+                    "V21Date": {
+                      "gte": "now-24h",
+                      "lte": "now"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "track_total_hits": true,
+          "size": 0
+        }
+      }
+    ],
+    "signature": {
+      "instructions": "Convert a natural language query into an Elasticsearch Query DSL format.\nThis module takes a natural language query as input and generates a corresponding Elasticsearch Query DSL JSON object.\nUse the ES schema of the GDELT index to inform the generation of the Query DSL, ensuring that field names and types are correctly referenced in the output.\nIf the natural language query references requirements that cannot be fulfilled based on the ES schema, rely on the existing fields in the schema to generate the most relevant Query DSL possible, and do not include any fields that are not present in the ES schema.\nDo not include any fields in the output that are not present in the ES schema. \nDo not use any scripts.\nIf feedback is provided from the judge on a previous iteration of the generated Query DSL, use that feedback to refine and improve the Query DSL in subsequent iterations.\nThe output should be a valid Elasticsearch Query DSL that can be directly used to query the GDELT index.",
+      "fields": [
+        {
+          "prefix": "Nl Query:",
+          "description": "A natural language query describing the search criteria."
+        },
+        {
+          "prefix": "Es Schema:",
+          "description": "The Elasticsearch schema of the GDELT index, including field names, types and descriptions."
+        },
+        {
+          "prefix": "Prev Query:",
+          "description": "The previously generated Query DSL, if this is a refinement iteration. For the initial generation, this will be empty or null."
+        },
+        {
+          "prefix": "Feedback:",
+          "description": "Feedback from the judge on the previous Query DSL, if this is a refinement iteration. For the initial generation, this will be empty or null."
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Query Dsl:",
+          "description": "A JSON object representing the equivalent Elasticsearch Query DSL for the given natural language query."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}
