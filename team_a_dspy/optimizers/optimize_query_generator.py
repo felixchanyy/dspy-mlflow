@@ -88,7 +88,7 @@ def main():
     configure_lm()
 
     student = OptimizableNLToQueryDSL(
-        chroma_client=ChromaClient(dev=settings.dev)
+        chroma_client=ChromaClient(dev=False) 
     )
 
     print(f"Loading dataset from {trainset_path}...")
@@ -117,6 +117,9 @@ def main():
         display_table=5 # see in terminal
     )
     evaluator(optimized)
+
+    print("\n=== RAW LLM HISTORY ===")
+    dspy.settings.lm.inspect_history(n=1)
 
 
 if __name__ == "__main__":
