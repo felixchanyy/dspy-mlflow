@@ -108,6 +108,16 @@ def main():
 
     print(f"Saved to: {output_path}")
 
+    print("\n--- Evaluating Optimized Program on Devset ---")
+    evaluator = dspy.Evaluate(
+        devset=devset, 
+        metric=metric_exact_query_dsl, 
+        num_threads=4, 
+        display_progress=True, 
+        display_table=5 # see in terminal
+    )
+    evaluator(optimized)
+
 
 if __name__ == "__main__":
     main()
