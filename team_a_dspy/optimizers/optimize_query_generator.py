@@ -73,8 +73,14 @@ def configure_lm() -> None:
     )
     dspy.configure(lm=lm)
 
+DATASET_PATH = Path("data/optimizer_trainset.jsonl")
 
-def main() -> None:
+def main():
+    print(f"Loading dataset from {DATASET_PATH}...")
+    
+    dataset = load_jsonl_examples(DATASET_PATH)
+    trainset, devset = dataset[:30], dataset[30:]
+
     parser = argparse.ArgumentParser(description="Optimize NLToQueryDSL prompt with DSPy teleprompting.")
     parser.add_argument(
         "--trainset",
