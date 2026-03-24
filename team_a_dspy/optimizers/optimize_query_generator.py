@@ -73,51 +73,40 @@ def configure_lm() -> None:
     )
     dspy.configure(lm=lm)
 
-DATASET_PATH = Path("data/optimizer_trainset.jsonl")
-
 def main():
-    print(f"Loading dataset from {DATASET_PATH}...")
-    
-    dataset = load_jsonl_examples(DATASET_PATH)
-    trainset, devset = dataset[:30], dataset[30:]
-
-    parser = argparse.ArgumentParser(description="Optimize NLToQueryDSL prompt with DSPy teleprompting.")
-    parser.add_argument(
-        "--trainset",
-        default=str(TEAM_A_ROOT / "data" / "optimizer_trainset.jsonl"),
-        help="Path to JSONL file with nl_query and expected_query_dsl fields.",
-    )
-    parser.add_argument(
-        "--output",
-        default=str(TEAM_A_ROOT / "optimizers" / "artifacts" / "optimized_query_generator.json"),
-        help="Path to save optimized DSPy program artifact.",
-    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--trainset", default=str(TEAM_A_ROOT / "data/optimizer_trainset.jsonl"))
+    parser.add_argument("--output", default=str(TEAM_A_ROOT / "optimizers/artifacts/optimized_query_generator.json"))
     args = parser.parse_args()
 
     trainset_path = Path(args.trainset).resolve()
     output_path = Path(args.output).resolve()
 
     if not trainset_path.exists():
-        raise FileNotFoundError(
-            f"Trainset not found at {trainset_path}. Create it from team_a_dspy/data/optimizer_trainset.example.jsonl"
-        )
+        raise FileNotFoundError(f"Trainset not found: {trainset_path}")
 
     configure_lm()
 
-    chroma_client = ChromaClient(dev=settings.dev)
-    student = OptimizableNLToQueryDSL(chroma_client=chroma_client)
+    student = OptimizableNLToQueryDSL(
+        chroma_client=ChromaClient(dev=settings.dev)
+    )
 
-    trainset = load_jsonl_examples(trainset_path)
-    if not trainset:
-        raise ValueError("Trainset is empty. Add at least one JSONL row.")
+    print(f"Loading dataset from {trainset_path}...")
+    dataset = load_jsonl_examples(trainset_path)
 
-    teleprompter = dspy.BootstrapFewShot(metric=metric_exact_query_dsl)
-    optimized_program = teleprompter.compile(student=student, trainset=trainset)
+    if not dataset:
+        raise ValueError("Trainset is empty")
+
+    trainset, devset = dataset[:30], dataset[30:]
+    print(f"Train: {len(trainset)}, Dev: {len(devset)}")
+
+    optimized = dspy.BootstrapFewShot(metric=metric_exact_query_dsl)\
+                   .compile(student=student, trainset=trainset)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    optimized_program.save(str(output_path))
+    optimized.save(str(output_path))
 
-    print(f"Optimization complete. Saved artifact to: {output_path}")
+    print(f"Saved to: {output_path}")
 
 
 if __name__ == "__main__":
