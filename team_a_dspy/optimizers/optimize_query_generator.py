@@ -2,6 +2,8 @@ import argparse
 import json
 from pathlib import Path
 import sys
+from services.sandbox_es_client import SandboxESClient
+from metrics.relevance_evaluator import GDELTRelevanceEvaluator
 
 import dspy
 
@@ -63,6 +65,37 @@ def metric_exact_query_dsl(example: dspy.Example, pred: dspy.Prediction, trace=N
     predicted = normalize_query_dsl(pred.query_dsl)
     return 1.0 if expected == predicted else 0.0
 
+def metric_gdelt_relevance(example: dspy.Example, pred: dspy.Prediction, trace=None) -> float:
+    """
+    Wrapper metric that executes the generated query and passes the 
+    resulting documents to the GDELTRelevanceEvaluator.
+    """
+    generated_dsl = normalize_query_dsl(pred.query_dsl)
+    if not generated_dsl:
+        return 0.0
+
+    try:
+        sandbox_es = SandboxESClient()
+        evaluator = GDELTRelevanceEvaluator(llm_client=dspy.settings.lm)
+
+        search_results = sandbox_es.search({"query_dsl": generated_dsl})
+        
+        hits = search_results.get("hits", {}).get("hits", [])
+        documents = [hit["_source"] for hit in hits]
+        
+        if not documents:
+            return 0.0 
+            
+        evaluation = evaluator.evaluate_query(
+            user_query=example.nl_query, 
+            es_results=documents
+        )
+        
+        return float(evaluation.get("relevance_score", 0.0))
+        
+    except Exception as e:
+        print(f"ES Error: {e}")
+        return 0.0
 
 def configure_lm() -> None:
     lm = dspy.LM(
@@ -100,21 +133,22 @@ def main():
     trainset, devset = dataset[:30], dataset[30:]
     print(f"Train: {len(trainset)}, Dev: {len(devset)}")
 
+    # 1. TRAINING 
     optimized = dspy.BootstrapFewShot(metric=metric_exact_query_dsl)\
                    .compile(student=student, trainset=trainset)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     optimized.save(str(output_path))
-
     print(f"Saved to: {output_path}")
 
-    print("\n--- Evaluating Optimized Program on Devset ---")
+    # 2. EVALUATION 
+    print("\n--- Evaluating Real-World Relevance on Devset ---")
     evaluator = dspy.Evaluate(
         devset=devset, 
-        metric=metric_exact_query_dsl, 
+        metric=metric_gdelt_relevance, 
         num_threads=4, 
         display_progress=True, 
-        display_table=5 # see in terminal
+        display_table=5 
     )
     evaluator(optimized)
 
