@@ -250,22 +250,23 @@ async def initialize(
 ):
     dspy_client.startup()
     sample_docs = dspy_client.fetch_samples()
-    def push_to_dev_es(sandbox_es_client: SandboxESClient, docs: list[dict]):
+    def push_to_dev_es(sandbox_es_client, docs):
         """
         Pushes the sample documents to the sandbox ES instance.
         """
-        if not docs:
-            return
-        actions = [
-            {
-                "_index": settings.sandbox_es_index,
-                "_id": doc.get("_id"),
-                "_source": doc.get("_source"),
-            }
-            for doc in docs
-        ]
-        
-        # --- UPDATE THIS SECTION ---
+        actions = []
+
+        for doc in docs:
+            # doc is already _source (based on your earlier pipeline)
+            if not isinstance(doc, dict):
+                continue
+
+            actions.append({
+                "_index": sandbox_es_client.index,
+                "_id": str(doc.get("GkgRecordId") or doc.get("id") or ""),
+                "_source": doc
+            })
+            
         from elasticsearch.helpers import BulkIndexError
         
         try:
@@ -273,7 +274,6 @@ async def initialize(
             print(f"Succeeded: {success}, Failed: {failed}")
         except BulkIndexError as e:
             print(f"Failed to index {len(e.errors)} documents.")
-            # Print the first error to see exactly what Elasticsearch is complaining about
             print("Reason for first failure:", e.errors[0])
 
 @app.get("/load_example", dependencies=[Depends(require_dev_mode)])
