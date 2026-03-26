@@ -2,22 +2,19 @@ import argparse
 import json
 from pathlib import Path
 import sys
-from services.sandbox_es_client import SandboxESClient
-from metrics.relevance_evaluator import GDELTRelevanceEvaluator
 
-import dspy
-
-# Allow running this file directly from anywhere in the repo.
 THIS_FILE = Path(__file__).resolve()
 TEAM_A_ROOT = THIS_FILE.parents[1]
 if str(TEAM_A_ROOT) not in sys.path:
     sys.path.insert(0, str(TEAM_A_ROOT))
 
+from services.sandbox_es_client import SandboxESClient
+from metrics.relevance_evaluator import GDELTRelevanceEvaluator
+import dspy
 from services.chroma_client import ChromaClient
 from services.config import settings
 from signatures.es_query_generator import NLToQuerySignature
 from signatures.schema_interpreter import SchemaRetriever
-
 
 class OptimizableNLToQueryDSL(dspy.Module):
     """
