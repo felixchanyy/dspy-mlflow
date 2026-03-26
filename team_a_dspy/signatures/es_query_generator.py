@@ -1,3 +1,5 @@
+import re
+import json
 import dspy
 
 from services.chroma_client import ChromaClient
@@ -13,13 +15,26 @@ class NLToQueryDSL(dspy.Module):
         self.dspy_judge = dspy_judge
         self.refiner = dspy.ChainOfThought(RefinerSignature)
 
-    def forward(self, nl_query: str) -> dict:
-        # 1. Extract the schema string from the Prediction object
+    def forward(self, nl_query: str):
         schema_prediction = self.schema_retriever(nl_query=nl_query)
-        es_schema = schema_prediction.schema 
+        es_schema = schema_prediction.schema
 
         generated_query = self.generate_query(nl_query=nl_query, es_schema=es_schema)
-        current_query_dsl = generated_query.query_dsl
+        
+        # Helper function to strip markdown and parse JSON
+        def extract_json(text: str) -> dict:
+            if not text: return {}
+            # Strip out markdown formatting if the LLM includes it
+            text = re.sub(r"^```json\s*", "", text)
+            text = re.sub(r"^```\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+            try:
+                return json.loads(text.strip())
+            except Exception:
+                return {"error": "Failed to parse JSON", "raw_output": text}
+
+        # Parse the string into a dictionary manually
+        current_query_dsl = extract_json(generated_query.query_dsl)
 
         # 2. Fix the logic bug: move the evaluation INSIDE the loop
         for attempt in range(3):
@@ -57,8 +72,8 @@ class NLToQuerySignature(dspy.Signature):
     prev_query: dict = dspy.InputField(desc="The previously generated Query DSL, if this is a refinement iteration. For the initial generation, this will be empty or null.", required=False)
     feedback: str = dspy.InputField(desc="Feedback from the judge on the previous Query DSL, if this is a refinement iteration. For the initial generation, this will be empty or null.", required=False)
 
-    query_dsl: dict = dspy.OutputField(
-        desc="A JSON object representing the equivalent Elasticsearch Query DSL for the given natural language query."
+    query_dsl: str = dspy.OutputField(
+        desc="A JSON object representing the Elasticsearch Query DSL. Output ONLY raw JSON, without any markdown formatting or backticks."
     )
 
 class RefinerSignature(dspy.Signature):

@@ -151,20 +151,21 @@ def run_mlflow_eval(dspy_client, query_text: str):
             }
         }
     }]
-    mlflow.genai.evaluate(
-        data=eval_dataset,
-        predict_fn=dspy_client.generate_query_dsl,
-        scorers=[Correctness()],
-    )
+    try:
+        mlflow.genai.evaluate(
+            data=eval_dataset,
+            predict_fn=dspy_client.generate_query_dsl,
+        )
+        print("Background MLflow evaluation completed successfully.")
+    except Exception as e:
+        print(f"MLflow Background Eval Error: {e}")
 
 @app.post("/generate_query", response_model=QueryResponse, dependencies=[Depends(require_dev_mode)])
 async def generate_query(
     query: QueryRequest,
-    background_tasks: BackgroundTasks,
-    dspy_client: DSPYClient = Depends(get_dspy_client)
+    dspy_client: DSPYClient = Depends(get_dspy_client) # Removed BackgroundTasks here
 ):
     query_dsl = await run_in_threadpool(dspy_client.generate_query_dsl, query.query_text)
-    background_tasks.add_task(run_mlflow_eval, dspy_client, query.query_text)
     
     return QueryResponse(query_dsl=query_dsl)
 
