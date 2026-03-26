@@ -35,6 +35,9 @@ async def lifespan(app: FastAPI):
     app.state.es_client = es_client
     app.state.dspy_client = dspy_client # FIXED TYPO
     app.state.dspy_judge = dspy_judge
+    
+    app.state.sandbox_es_client = sandbox_es_client
+    
     yield
     dspy_client.close() 
 
