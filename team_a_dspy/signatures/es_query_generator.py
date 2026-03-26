@@ -38,7 +38,7 @@ class NLToQueryDSL(dspy.Module):
 
         # 2. Fix the logic bug: move the evaluation INSIDE the loop
         for attempt in range(3):
-            response = self.dspy_judge.evaluate_query_dsl(current_query_dsl)
+            response = self.dspy_judge._evaluate_query_dsl_syntax(current_query_dsl)
             print(f"Validation attempt {attempt+1}: is_valid={response['is_valid']}, feedback={response['feedback']}")
             
             if response['is_valid']:

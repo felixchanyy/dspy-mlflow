@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     )
     chroma_client = ChromaClient(dev=False)
     sandbox_es_client = SandboxESClient()
-    dspy_judge = JudgeDSPY(sandbox_es_client=sandbox_es_client)
+    dspy_judge = JudgeDSPY(es_client=sandbox_es_client)
     dspy_client = DSPYClient(es_client=es_client, chroma_client=chroma_client, judge_dspy=dspy_judge)
     
     app.state.es_client = es_client
@@ -179,6 +179,64 @@ async def search(query: QueryRequest, dspy_client: DSPYClient = Depends(get_dspy
         return search_results
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search execution failed: {str(e)}")
+
+@app.post("/evaluate_query", response_model=dict, dependencies=[Depends(require_dev_mode)])
+async def evaluate_query(
+    query: QueryResponse,
+    dspy_judge: JudgeDSPY = Depends(get_dspy_judge)
+):
+    start_time = time.perf_counter()
+    with mlflow.start_run(run_name="evaluate_query"):
+        # Offload syntax checking to threadpool
+        evaluation_result = await run_in_threadpool(dspy_judge._evaluate_query_dsl_syntax, query.query_dsl)
+        mlflow.log_metric("latency_ms", (time.perf_counter() - start_time) * 1000)
+        mlflow.log_metric("is_valid", 1 if evaluation_result.get("is_valid") else 0)
+        mlflow.log_param("feedback", evaluation_result.get("feedback", ""))
+    return evaluation_result
+
+@app.post("/search_and_aggregate", response_model=dict)
+async def search_and_aggregate(
+    query: QueryRequest,
+    dspy_client: DSPYClient = Depends(get_dspy_client),
+    es_client: ESClient = Depends(get_es_client),
+    judge_dspy: JudgeDSPY = Depends(get_dspy_judge)
+):
+    start_time = time.perf_counter()
+    with mlflow.start_run(run_name="search_and_aggregate"):
+        query_dsl = await run_in_threadpool(dspy_client.generate_query_dsl, query.query_text)
+        search_results = await run_in_threadpool(es_client.search, query_dsl)
+        docs = search_results.get("hits", {}).get("hits", [])
+        
+        aggregations = await run_in_threadpool(judge_dspy._aggregate_es_documents, docs)
+        
+        mlflow.log_param("query_text", query.query_text)
+        mlflow.log_metric("latency_ms", (time.perf_counter() - start_time) * 1000)
+        mlflow.log_dict(query_dsl, "executed_query_dsl.json")
+        mlflow.log_dict(aggregations, "aggregations.json")
+    return aggregations
+
+@app.post("/evaluate_relevance", response_model=dict)
+async def evaluate_relevance(
+    query: QueryRequest,
+    dspy_client: DSPYClient = Depends(get_dspy_client),
+    es_client: ESClient = Depends(get_es_client),
+    judge_dspy: JudgeDSPY = Depends(get_dspy_judge)
+):
+    start_time = time.perf_counter()
+    with mlflow.start_run(run_name="evaluate_relevance"):
+        query_dsl = await run_in_threadpool(dspy_client.generate_query_dsl, query.query_text)
+        search_results = await run_in_threadpool(es_client.search, query_dsl)
+        docs = search_results.get("hits", {}).get("hits", [])
+        
+        aggregations = await run_in_threadpool(judge_dspy._aggregate_es_documents, docs)
+        relevance_evaluation = await run_in_threadpool(judge_dspy.compute_relevance_score, query.query_text, aggregations)
+        
+        mlflow.log_param("query_text", query.query_text)
+        mlflow.log_metric("latency_ms", (time.perf_counter() - start_time) * 1000)
+        mlflow.log_dict(query_dsl, "executed_query_dsl.json")
+        mlflow.log_dict(aggregations, "aggregations.json")
+        mlflow.log_metric("relevance_score", relevance_evaluation.get("relevance_score", 0))
+    return relevance_evaluation
 
 @app.get("/initialize", dependencies=[Depends(require_dev_mode)])
 async def initialize(
