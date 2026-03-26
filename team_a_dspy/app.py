@@ -75,6 +75,9 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     query_dsl: dict
 
+class InitResponse(BaseModel):
+    status: str
+
 def run_mlflow_eval(dspy_client, query_text: str):
     mlflow.set_tracking_uri("http://mlflow:5000")
     mlflow.set_experiment(experiment_id="0")
@@ -243,7 +246,7 @@ async def evaluate_relevance(
         mlflow.log_metric("relevance_score", relevance_evaluation.get("relevance_score", 0))
     return relevance_evaluation
 
-@app.get("/initialize", dependencies=[Depends(require_dev_mode)])
+@app.get("/initialize", response_model=InitResponse, dependencies=[Depends(require_dev_mode)])
 async def initialize(
     sandbox_es_client: SandboxESClient = Depends(get_sandbox_es_client),
     dspy_client: DSPYClient = Depends(get_dspy_client)

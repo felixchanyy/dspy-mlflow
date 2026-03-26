@@ -367,7 +367,7 @@ def make_json_safe(obj):
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Optimize the Team A DSPy Elasticsearch query generator.")
-    parser.add_argument("--dataset", default=str(TEAM_A_ROOT / "data" / "optimizer_fullset.jsonl"))
+    parser.add_argument("--dataset", default=str(TEAM_A_ROOT / "data" / "optimizer_trainset.jsonl"))
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--min-dev-size", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)

@@ -13,7 +13,7 @@ def main() -> None:
         sys.executable,
         str(script),
         "--dataset",
-        str(repo_root / "data" / "optimizer_fullset.jsonl"),
+        str(repo_root / "data" / "optimizer_trainset.jsonl"),
         "--optimizer-type",
         "mipro",
         "--metric-type",
