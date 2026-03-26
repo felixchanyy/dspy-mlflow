@@ -1221,7 +1221,7 @@
         },
         {
           "prefix": "Es Schema:",
-          "description": "The Elasticsearch schema of the GDELT index, including field names, types and descriptions."
+          "description": "The Elasticsearch schema..."
         },
         {
           "prefix": "Prev Query:",
@@ -1237,7 +1237,7 @@
         },
         {
           "prefix": "Query Dsl:",
-          "description": "A JSON object representing the equivalent Elasticsearch Query DSL for the given natural language query."
+          "description": "A JSON object representing the Elasticsearch Query DSL. Output ONLY raw JSON, without any markdown formatting or backticks."
         }
       ]
     },
