@@ -108,13 +108,10 @@ class ESClient:
     def search(self, query_dsl: dict) -> dict:
         """
         Executes a search query against Elasticsearch using the provided Query DSL.
-        
-        Args:
-            query_dsl (dict): The Elasticsearch Query DSL to be executed.
-        Returns:
-            dict: The search results returned by Elasticsearch.
         """
-        query = query_dsl.get("query_dsl", {})
+        # Safely extract the query body whether it's wrapped or not
+        query = query_dsl.get("query_dsl", query_dsl) if isinstance(query_dsl, dict) else {}
+        
         response = self.es.search(index=self.index, body=query)
         return response.body
     

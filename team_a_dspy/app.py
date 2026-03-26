@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import mlflow
 import mlflow.dspy
 import nest_asyncio
+import time
 from services.dspy_client import DSPYClient
 from services.es_client import ESClient
 from services.chroma_client import ChromaClient
@@ -11,6 +12,10 @@ from services.sandbox_es_client import SandboxESClient
 from services.config import settings
 from services.judge_dspy import JudgeDSPY
 from elasticsearch import helpers
+
+import os
+# Suppress GitPython warnings since git isn't installed in the container
+os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 nest_asyncio.apply()
 

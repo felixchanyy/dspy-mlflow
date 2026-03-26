@@ -19,12 +19,14 @@ class NLToQueryDSL(dspy.Module):
         schema_prediction = self.schema_retriever(nl_query=nl_query)
         es_schema = schema_prediction.schema
 
-        generated_query = self.generate_query(nl_query=nl_query, es_schema=es_schema)
+        generated_query = self.generate_query(nl_query=nl_query, es_schema=es_schema, prev_query="", feedback="")
         
         # Helper function to strip markdown and parse JSON
-        def extract_json(text: str) -> dict:
+        def extract_json(text) -> dict:
+            if isinstance(text, dict): return text  # Protect against it already being a dict
             if not text: return {}
             # Strip out markdown formatting if the LLM includes it
+            text = str(text)
             text = re.sub(r"^```json\s*", "", text)
             text = re.sub(r"^```\s*", "", text)
             text = re.sub(r"\s*```$", "", text)
@@ -36,13 +38,11 @@ class NLToQueryDSL(dspy.Module):
         # Parse the string into a dictionary manually
         current_query_dsl = extract_json(generated_query.query_dsl)
 
-        # 2. Fix the logic bug: move the evaluation INSIDE the loop
         for attempt in range(3):
             response = self.dspy_judge._evaluate_query_dsl_syntax(current_query_dsl)
             print(f"Validation attempt {attempt+1}: is_valid={response['is_valid']}, feedback={response['feedback']}")
             
             if response['is_valid']:
-                # 3. Wrap the return value
                 return dspy.Prediction(query_dsl=current_query_dsl)
                 
             refined_query = self.refiner(
@@ -51,9 +51,9 @@ class NLToQueryDSL(dspy.Module):
                 failed_query_dsl=str(current_query_dsl), 
                 feedback=str(response['feedback'])
             )
-            current_query_dsl = refined_query.query_dsl
+            # ---> FIX IS HERE: Parse the refined string back into a dict <---
+            current_query_dsl = extract_json(refined_query.query_dsl)
         
-        # 3. Wrap the return value
         return dspy.Prediction(query_dsl=current_query_dsl)
     
 class NLToQuerySignature(dspy.Signature):
