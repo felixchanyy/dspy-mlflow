@@ -126,7 +126,7 @@ def build_field_aliases(field_name: str) -> list[str]:
 
 
 def ensure_chroma_has_schema(chroma_client: ChromaClient, sandbox_client: SandboxESClient) -> None:
-    if chroma_client.count() > 0:
+    if chroma_client.collection.count() > 0:
         return
 
     flat_mapping = sandbox_client.get_flat_mapping()
@@ -397,9 +397,7 @@ def main() -> None:
 
     configure_lm()
 
-    sandbox_client = SandboxESClient(
-        host="http://localhost:9200" if settings.dev else None
-    )
+    sandbox_client = SandboxESClient()
     judge = JudgeDSPY(es_client=sandbox_client)
 
     rows = load_jsonl_rows(dataset_path)

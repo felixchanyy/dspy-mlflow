@@ -253,6 +253,7 @@ async def initialize(
 ):
     dspy_client.startup()
     sample_docs = dspy_client.fetch_samples()
+    
     def push_to_dev_es(sandbox_es_client, docs):
         """
         Pushes the sample documents to the sandbox ES instance.
@@ -260,7 +261,6 @@ async def initialize(
         actions = []
 
         for doc in docs:
-            # doc is already _source (based on your earlier pipeline)
             if not isinstance(doc, dict):
                 continue
 
@@ -278,6 +278,9 @@ async def initialize(
         except BulkIndexError as e:
             print(f"Failed to index {len(e.errors)} documents.")
             print("Reason for first failure:", e.errors[0])
+
+    push_to_dev_es(sandbox_es_client, sample_docs)
+    return {"status": "initialized"}
 
 @app.get("/load_example", dependencies=[Depends(require_dev_mode)])
 async def load_example(
