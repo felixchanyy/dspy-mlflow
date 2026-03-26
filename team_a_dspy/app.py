@@ -1,24 +1,25 @@
-from elasticsearch import helpers
 from fastapi import Depends, FastAPI, HTTPException, Request, status, BackgroundTasks
-from fastapi.concurrency import asynccontextmanager
+from fastapi.concurrency import asynccontextmanager, run_in_threadpool # Essential for non-blocking I/O
 from pydantic import BaseModel
-
+import mlflow
+import mlflow.dspy
+import nest_asyncio
 from services.dspy_client import DSPYClient
 from services.es_client import ESClient
 from services.chroma_client import ChromaClient
 from services.sandbox_es_client import SandboxESClient
 from services.config import settings
 from services.judge_dspy import JudgeDSPY
-
-import mlflow
-import nest_asyncio
-from mlflow.genai.scorers import Correctness
+from elasticsearch import helpers
 
 nest_asyncio.apply()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize clients and store them in app state
+    # Initialize MLflow with global autologging
+    mlflow.set_tracking_uri("http://mlflow:5000")
+    mlflow.dspy.autolog(log_traces=True, log_compiles=True) # [2, 3]
+    
     es_client = ESClient(
         host=settings.es_host,
         username=settings.es_username,
@@ -28,21 +29,16 @@ async def lifespan(app: FastAPI):
     )
     chroma_client = ChromaClient(dev=False)
     sandbox_es_client = SandboxESClient()
-
     dspy_judge = JudgeDSPY(sandbox_es_client=sandbox_es_client)
-    dpsy_client = DSPYClient(es_client=es_client, chroma_client=chroma_client, judge_dspy=dspy_judge)
+    dspy_client = DSPYClient(es_client=es_client, chroma_client=chroma_client, judge_dspy=dspy_judge)
     
-
     app.state.es_client = es_client
-    app.state.sandbox_es_client = sandbox_es_client
-    app.state.chroma_client = chroma_client
-    app.state.dspy_client = dpsy_client
+    app.state.dspy_client = dspy_client # FIXED TYPO
     app.state.dspy_judge = dspy_judge
-
     yield
-    # Cleanup if necessary (e.g., close connections)
-    
-    dpsy_client.close()
+    dspy_client.close() 
+
+app = FastAPI(title="GDELT Text-to-Query-DSL", lifespan=lifespan)
 
 def get_dspy_client(request: Request) -> DSPYClient:
     return request.app.state.dspy_client
@@ -164,27 +160,21 @@ async def generate_query(
     background_tasks: BackgroundTasks,
     dspy_client: DSPYClient = Depends(get_dspy_client)
 ):
-    query_dsl = dspy_client.generate_query_dsl(query.query_text)
+    query_dsl = await run_in_threadpool(dspy_client.generate_query_dsl, query.query_text)
     background_tasks.add_task(run_mlflow_eval, dspy_client, query.query_text)
+    
     return QueryResponse(query_dsl=query_dsl)
 
-@app.post("/evaluate_query", response_model=dict, dependencies=[Depends(require_dev_mode)])
-async def evaluate_query(
-    query: QueryResponse,
-    dspy_judge: JudgeDSPY = Depends(get_dspy_judge)
-):
-    evaluation_result = dspy_judge.evaluate_query_dsl(generated_query_dsl=query.query_dsl)
-    return evaluation_result
-
-@app.post("/search", response_model=dict)
-async def search(
-    query: QueryRequest,
-    dspy_client: DSPYClient = Depends(get_dspy_client),
-    es_client: ESClient = Depends(get_es_client)
-):
-    query_dsl = dspy_client.generate_query_dsl(query.query_text)
-    search_results = es_client.search(query_dsl=query_dsl)
-    return search_results
+@app.post("/search")
+async def search(query: QueryRequest, dspy_client: DSPYClient = Depends(get_dspy_client), es_client: ESClient = Depends(get_es_client)):
+    try:
+        # 1. Generate Query DSL (Non-blocking)
+        query_dsl = await run_in_threadpool(dspy_client.generate_query_dsl, query.query_text)
+        # 2. Execute Search with Error Handling 
+        search_results = await run_in_threadpool(es_client.search, query_dsl)
+        return search_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search execution failed: {str(e)}")
 
 @app.get("/initialize", dependencies=[Depends(require_dev_mode)])
 async def initialize(
@@ -207,7 +197,7 @@ async def initialize(
             }
             for doc in docs
         ]
-        success, failed = helpers.bulk(sandbox_es_client.es, actions)
+        success, failed = helpers.bulk(sandbox_es_client.es, actions) 
         print(f"Succeeded: {success}, Failed: {failed}")
 
     push_to_dev_es(sandbox_es_client, sample_docs)

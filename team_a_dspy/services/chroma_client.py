@@ -21,30 +21,23 @@ class ChromaClient:
         self.collection = client.get_or_create_collection(name=self.collection_name)
 
     def add_documents(self, interpreted_fields: list[dict] | dict) -> None:
-        """
-        Add the intepreted fields to the ChromaDB collection.
-        The interpreted fields should be a One or Many dictionaries, where each dictionary has the following structure:
-        {
-            "field_name": "field_name",
-            "field_type": "field_type",
-            "interpretation": "interpretation",
-        }
-        """
         if isinstance(interpreted_fields, dict):
-            interpreted_fields = [interpreted_fields,]
+            interpreted_fields = [interpreted_fields]
 
-        for doc in interpreted_fields:
-            id = doc["field_name"]
-            metadata = {
-                "field_name": doc["field_name"],
-                "field_type": doc["field_type"],
-            }
-            content = doc["interpretation"]
-            self.collection.upsert(
-                ids=id,
-                metadatas=metadata,
-                documents=content,
-            )
+        # Bulk extract into lists for ChromaDB
+        ids = [doc["field_name"] for doc in interpreted_fields]
+        metadatas = [{
+            "field_name": doc["field_name"],
+            "field_type": doc["field_type"]
+        } for doc in interpreted_fields]
+        documents = [str(doc["interpretation"]) for doc in interpreted_fields]
+
+        # Perform a single bulk upsert (much faster and avoids the string-iteration bug)
+        self.collection.upsert(
+            ids=ids,
+            metadatas=metadatas,
+            documents=documents,
+        )
     
     def query(self, query_text: str, k: int = 6) -> dict:
         """

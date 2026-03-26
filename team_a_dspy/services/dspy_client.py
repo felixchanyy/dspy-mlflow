@@ -1,7 +1,6 @@
 import dspy
 
 from collections import defaultdict
-from sentence_transformers.model_card import IGNORED_FIELDS
 
 from services.chroma_client import ChromaClient
 from services.es_client import ESClient, SAMPLE_SIZE_PER_DAY

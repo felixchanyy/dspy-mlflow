@@ -65,22 +65,29 @@ def metric_exact_query_dsl(example: dspy.Example, pred: dspy.Prediction, trace=N
     predicted = normalize_query_dsl(pred.query_dsl)
     return 1.0 if expected == predicted else 0.0
 
+_SANDBOX_CLIENT = None
+_RELEVANCE_EVALUATOR = None
+
+def get_eval_tools():
+    global _SANDBOX_CLIENT, _RELEVANCE_EVALUATOR
+    if _SANDBOX_CLIENT is None:
+        _SANDBOX_CLIENT = SandboxESClient()
+    if _RELEVANCE_EVALUATOR is None:
+        # Pass the global dspy.settings.lm for consistency 
+        _RELEVANCE_EVALUATOR = GDELTRelevanceEvaluator()
+    return _SANDBOX_CLIENT, _RELEVANCE_EVALUATOR
+
 def metric_gdelt_relevance(example: dspy.Example, pred: dspy.Prediction, trace=None) -> float:
-    """
-    Wrapper metric that executes the generated query and passes the 
-    resulting documents to the GDELTRelevanceEvaluator.
-    """
     generated_dsl = normalize_query_dsl(pred.query_dsl)
     if not generated_dsl:
         return 0.0
 
     try:
-        sandbox_es = SandboxESClient()
-        evaluator = GDELTRelevanceEvaluator(llm_client=dspy.settings.lm)
+        sandbox_es, evaluator = get_eval_tools()
 
+        # Execute search on the sandbox index 
         search_results = sandbox_es.search({"query_dsl": generated_dsl})
-        
-        hits = search_results.get("hits", {}).get("hits", [])
+        hits = search_results.get("hits", {}).get("hits",)
         documents = [hit["_source"] for hit in hits]
         
         if not documents:
@@ -94,8 +101,19 @@ def metric_gdelt_relevance(example: dspy.Example, pred: dspy.Prediction, trace=N
         return float(evaluation.get("relevance_score", 0.0))
         
     except Exception as e:
-        print(f"ES Error: {e}")
+        print(f"Evaluation Error: {e}")
         return 0.0
+
+def configure_lm() -> None:
+    # Use the model name from settings directly 
+    # Note: Ensure LLM_BASE_URL points to the correct proxy/service
+    lm = dspy.LM(
+        base_url=settings.llm_base_url,
+        model=f"openai/{settings.llm_model_name}",
+        api_key=settings.llm_api_key,
+        temperature=0.0,
+    )
+    dspy.configure(lm=lm)
 
 def configure_lm() -> None:
     lm = dspy.LM(
