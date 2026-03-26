@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     dspy_client = DSPYClient(es_client=es_client, chroma_client=chroma_client, judge_dspy=dspy_judge)
     
     app.state.es_client = es_client
-    app.state.dspy_client = dspy_client # FIXED TYPO
+    app.state.dspy_client = dspy_client
     app.state.dspy_judge = dspy_judge
     
     app.state.sandbox_es_client = sandbox_es_client
@@ -200,11 +200,17 @@ async def initialize(
             }
             for doc in docs
         ]
-        success, failed = helpers.bulk(sandbox_es_client.es, actions) 
-        print(f"Succeeded: {success}, Failed: {failed}")
-
-    push_to_dev_es(sandbox_es_client, sample_docs)
-    return {"status": "initialized"}
+        
+        # --- UPDATE THIS SECTION ---
+        from elasticsearch.helpers import BulkIndexError
+        
+        try:
+            success, failed = helpers.bulk(sandbox_es_client.es, actions)
+            print(f"Succeeded: {success}, Failed: {failed}")
+        except BulkIndexError as e:
+            print(f"Failed to index {len(e.errors)} documents.")
+            # Print the first error to see exactly what Elasticsearch is complaining about
+            print("Reason for first failure:", e.errors[0])
 
 @app.get("/load_example", dependencies=[Depends(require_dev_mode)])
 async def load_example(

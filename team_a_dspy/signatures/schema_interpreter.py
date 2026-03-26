@@ -23,7 +23,7 @@ class DataAwareSchemaInterpreter(dspy.Module):
         
     def forward(self, field_name, field_type, sample_values):
         prediction = self.interpret(field_name=field_name, field_type=field_type, sample_values=sample_values)
-        return prediction.interpretation
+        return dspy.Prediction(interpretation=prediction.interpretation)
 
 class PlanSchemaRetriver(dspy.Signature):
     """
@@ -56,14 +56,14 @@ class SchemaRetriever(dspy.Module):
                 for item in flattened_results:
                     relevant_schema[item['field_name']] = item
         if not relevant_schema:
-            return "No relevant schema information found in the database for the given query."
+            return dspy.Prediction(schema="No relevant schema information found in the database for the given query.")
         
         formatted_passages = []
         for field in relevant_schema.values():
             passage = f"Field Name: {field['field_name']} | Type: {field['field_type']} | Description: {field['interpretation']}"
             formatted_passages.append(passage)
             
-        return "\n---\n".join(formatted_passages)
+        return dspy.Prediction(schema="\n---\n".join(formatted_passages))
 
     @staticmethod    
     def flatten_chroma_results(raw_results: dict) -> list[dict]:

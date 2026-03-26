@@ -118,5 +118,5 @@ class DSPYClient:
         """
         Generates a query DSL based on the input natural language query text using the query generator.
         """
-        query_dsl = self.query_generator(nl_query=query_text)
-        return query_dsl
+        prediction = self.query_generator(nl_query=query_text)
+        return prediction.query_dsl

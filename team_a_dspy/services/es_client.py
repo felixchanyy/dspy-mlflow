@@ -1,5 +1,7 @@
-from services.config import settings
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+from services.config import settings
 from elasticsearch import Elasticsearch
 
 SAMPLE_SIZE_PER_DAY = 5
@@ -14,6 +16,7 @@ class ESClient:
             hosts=[host],
             basic_auth=(username, password),
             verify_certs=verify_ssl,
+            request_timeout=60, 
         )
         self.index = index
     

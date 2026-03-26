@@ -14,21 +14,33 @@ class NLToQueryDSL(dspy.Module):
         self.refiner = dspy.ChainOfThought(RefinerSignature)
 
     def forward(self, nl_query: str) -> dict:
-        es_schema = self.schema_retriever(nl_query=nl_query)
+        # 1. Extract the schema string from the Prediction object
+        schema_prediction = self.schema_retriever(nl_query=nl_query)
+        es_schema = schema_prediction.schema 
+
         generated_query = self.generate_query(nl_query=nl_query, es_schema=es_schema)
         current_query_dsl = generated_query.query_dsl
-        print(f"Reasoning trace for query generation:{generated_query.reasoning}")
 
-        response = self.dspy_judge.evaluate_query_dsl(current_query_dsl)
-
+        # 2. Fix the logic bug: move the evaluation INSIDE the loop
         for attempt in range(3):
+            response = self.dspy_judge.evaluate_query_dsl(current_query_dsl)
             print(f"Validation attempt {attempt+1}: is_valid={response['is_valid']}, feedback={response['feedback']}")
+            
             if response['is_valid']:
-                return current_query_dsl
-            refined_query = self.refiner(nl_query=nl_query, es_schema=es_schema, failed_query_dsl=generated_query.query_dsl, feedback=response['feedback'])
+                # 3. Wrap the return value
+                return dspy.Prediction(query_dsl=current_query_dsl)
+                
+            refined_query = self.refiner(
+                nl_query=nl_query, 
+                es_schema=es_schema, 
+                failed_query_dsl=str(current_query_dsl), 
+                feedback=str(response['feedback'])
+            )
             current_query_dsl = refined_query.query_dsl
         
-        return current_query_dsl
+        # 3. Wrap the return value
+        return dspy.Prediction(query_dsl=current_query_dsl)
+    
 class NLToQuerySignature(dspy.Signature):
     """
     Convert a natural language query into an Elasticsearch Query DSL format.
@@ -41,7 +53,7 @@ class NLToQuerySignature(dspy.Signature):
     The output should be a valid Elasticsearch Query DSL that can be directly used to query the GDELT index.
     """
     nl_query: str = dspy.InputField(desc="A natural language query describing the search criteria.")
-    es_schema: dict = dspy.InputField(desc="The Elasticsearch schema of the GDELT index, including field names, types and descriptions.")
+    es_schema: str = dspy.InputField(desc="The Elasticsearch schema...")
     prev_query: dict = dspy.InputField(desc="The previously generated Query DSL, if this is a refinement iteration. For the initial generation, this will be empty or null.", required=False)
     feedback: str = dspy.InputField(desc="Feedback from the judge on the previous Query DSL, if this is a refinement iteration. For the initial generation, this will be empty or null.", required=False)
 
