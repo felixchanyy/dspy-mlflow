@@ -272,7 +272,6 @@ def compile_program(
     compile_kwargs = {"student": student, "trainset": trainset}
     if teleprompter.__class__.__name__ == "MIPROv2":
         compile_kwargs["valset"] = devset
-        compile_kwargs["requires_permission_to_run"] = False
     return teleprompter, teleprompter.compile(**compile_kwargs)
 
 
