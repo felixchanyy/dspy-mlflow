@@ -1,8 +1,5 @@
 from __future__ import annotations
-
-import asyncio
 from typing import Any
-
 import dspy
 
 try:
@@ -18,20 +15,7 @@ def normalize_query_dsl(payload: Any) -> dict[str, Any]:
         return nested
     return payload
 
-
-def _run_async(coro):
-    try:
-        return asyncio.run(coro)
-    except RuntimeError:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            new_loop = asyncio.new_event_loop()
-            try:
-                return new_loop.run_until_complete(coro)
-            finally:
-                new_loop.close()
-        return loop.run_until_complete(coro)
-
+# Fix: Deleted the _run_async helper method
 
 class ExecutionAwareESMetric:
     """
@@ -51,15 +35,13 @@ class ExecutionAwareESMetric:
         if not candidate:
             return 0.0
 
-        result = _run_async(
-            self.sandbox_client.evaluate_query_dsl(
-                query_dsl=candidate,
-                expected_query_dsl=gold,
-            )
+        # Fix: Call the evaluation directly (synchronously) without asyncio.run()
+        result = self.sandbox_client.evaluate_query_dsl(
+            query_dsl=candidate,
+            expected_query_dsl=gold,
         )
 
         return float(result.get("score", 0.0))
-
 
 def metric_exact_query_dsl(example: dspy.Example, pred: dspy.Prediction, trace=None) -> float:
     gold = normalize_query_dsl(getattr(example, "query_dsl", {}))

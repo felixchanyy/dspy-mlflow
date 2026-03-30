@@ -68,7 +68,7 @@ class SandboxESClient(ESClient):
     # -------------------------------------------------------------------------
     # ASYNCHRONOUS EVALUATION: Required by ExecutionAwareESMetric in Optimizer
     # -------------------------------------------------------------------------
-    async def evaluate_query_dsl(self, query_dsl: dict[str, Any], expected_query_dsl: dict[str, Any] | None = None) -> dict[str, Any]:
+    def evaluate_query_dsl(self, query_dsl: dict[str, Any], expected_query_dsl: dict[str, Any] | None = None) -> dict[str, Any]:
         query = query_dsl.get("query_dsl", query_dsl) if isinstance(query_dsl, dict) else {}
         if not query:
             return {"score": 0.0}

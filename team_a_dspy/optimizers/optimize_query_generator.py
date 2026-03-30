@@ -155,10 +155,11 @@ def enrich_rows_with_schema(rows: list[dict[str, Any]], retriever: SchemaRetriev
     enriched_rows: list[dict[str, Any]] = []
     for row in rows:
         enriched = dict(row)
-        enriched["es_schema"] = retriever(row["nl_query"])
+        # Fix: Extract the actual '.schema' string from the dspy.Prediction object
+        prediction = retriever(nl_query=row["nl_query"])
+        enriched["es_schema"] = prediction.schema 
         enriched_rows.append(enriched)
     return enriched_rows
-
 
 def rows_to_examples(rows: list[dict[str, Any]]) -> list[dspy.Example]:
     examples: list[dspy.Example] = []

@@ -53,7 +53,10 @@ class NLToQueryDSL(dspy.Module):
         self.max_refine_attempts = max_refine_attempts
 
     def forward(self, nl_query: str) -> dspy.Prediction:
-        es_schema = self.schema_retriever(nl_query)
+        # Fix: Extract the schema string from the Prediction object
+        prediction = self.schema_retriever(nl_query=nl_query)
+        es_schema = prediction.schema
+        
         generated = self.generate_query(nl_query=nl_query, es_schema=es_schema)
         current_query_dsl = generated.query_dsl
 
