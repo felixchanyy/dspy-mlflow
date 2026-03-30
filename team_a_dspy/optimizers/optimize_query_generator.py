@@ -189,13 +189,9 @@ def filter_incompatible_rows(
     sandbox_client: SandboxESClient,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Drop only if expected fields do not exist in sandbox mapping.
-    If expected fields are missing only from retrieved es_schema text,
-    repair the row by appending those field definitions.
+    Keep all rows. If expected fields are missing from the retrieved es_schema text,
+    repair the row by appending those field definitions to the schema text.
     """
-    flat_mapping = sandbox_client.get_flat_mapping()
-    valid_fields = set(flat_mapping.keys())
-
     kept: list[dict[str, Any]] = []
     dropped: list[dict[str, Any]] = []
 
@@ -203,22 +199,12 @@ def filter_incompatible_rows(
         expected_fields = extract_fields_from_expected_query(sandbox_client, row)
         schema_text = row.get("es_schema", "") or ""
 
-        missing_in_mapping = sorted(field for field in expected_fields if field not in valid_fields)
+        # Check if the semantic search missed any fields the query actually needs
         missing_in_schema = sorted(field for field in expected_fields if field not in schema_text)
-
-        if missing_in_mapping:
-            bad_row = dict(row)
-            bad_row["_drop_reason"] = {
-                "reason": "expected_fields_missing_from_sandbox_mapping",
-                "missing_in_mapping": missing_in_mapping,
-                "missing_in_schema": missing_in_schema,
-                "expected_fields": sorted(expected_fields),
-            }
-            dropped.append(bad_row)
-            continue
 
         repaired_row = dict(row)
 
+        # Soft repair: dynamically append missing fields so the LLM knows they exist
         if missing_in_schema:
             appendix = build_required_schema_appendix(
                 sandbox_client=sandbox_client,
@@ -229,10 +215,6 @@ def filter_incompatible_rows(
                 + "\n\n### REQUIRED_FIELDS_APPENDIX ###\n"
                 + appendix
             )
-            repaired_row["_schema_repair"] = {
-                "missing_in_schema_before_repair": missing_in_schema,
-                "expected_fields": sorted(expected_fields),
-            }
 
         kept.append(repaired_row)
 
